@@ -586,67 +586,67 @@ namespace Yarn {
 
                 #region Operators
 
-                this.RegisterFunction(TokenType.Add.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.Add], 2, delegate(Value[] parameters) {
                     return parameters[0] + parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.Minus.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.Minus], 2, delegate (Value[] parameters) {
                     return parameters[0] - parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.UnaryMinus.ToString(), 1, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.UnaryMinus], 1, delegate (Value[] parameters) {
                     return -parameters[0];
                 });
 
-                this.RegisterFunction(TokenType.Divide.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.Divide], 2, delegate (Value[] parameters) {
                     return parameters[0] / parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.Multiply.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.Multiply], 2, delegate (Value[] parameters) {
                     return parameters[0] * parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.EqualTo.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.EqualTo], 2, delegate (Value[] parameters) {
                     return parameters[0].Equals(parameters[1]);
                 });
 
-                this.RegisterFunction(TokenType.NotEqualTo.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.NotEqualTo], 2, delegate (Value[] parameters) {
 
                     // Return the logical negative of the == operator's result
-                    var equalTo = this.GetFunction(TokenType.EqualTo.ToString());
+                    var equalTo = this.GetFunction(TokenTypeHelper.Strings[(int)TokenType.EqualTo]);
 
                     return !equalTo.Invoke(parameters).AsBool;
                 });
 
-                this.RegisterFunction(TokenType.GreaterThan.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.GreaterThan], 2, delegate (Value[] parameters) {
                     return parameters[0] > parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.GreaterThanOrEqualTo.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.GreaterThanOrEqualTo], 2, delegate (Value[] parameters) {
                     return parameters[0] >= parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.LessThan.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.LessThan], 2, delegate (Value[] parameters) {
                     return parameters[0] < parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.LessThanOrEqualTo.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.LessThanOrEqualTo], 2, delegate (Value[] parameters) {
                     return parameters[0] <= parameters[1];
                 });
 
-                this.RegisterFunction(TokenType.And.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.And], 2, delegate (Value[] parameters) {
                     return parameters[0].AsBool && parameters[1].AsBool;
                 });
 
-                this.RegisterFunction(TokenType.Or.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.Or], 2, delegate (Value[] parameters) {
                     return parameters[0].AsBool || parameters[1].AsBool;
                 });
 
-                this.RegisterFunction(TokenType.Xor.ToString(), 2, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.Xor], 2, delegate (Value[] parameters) {
                     return parameters[0].AsBool ^ parameters[1].AsBool;
                 });
 
-                this.RegisterFunction(TokenType.Not.ToString(), 1, delegate (Value[] parameters) {
+                this.RegisterFunction(TokenTypeHelper.Strings[(int)TokenType.Not], 1, delegate (Value[] parameters) {
                     return !parameters[0].AsBool;
                 });
 

@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 using System;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 
@@ -170,6 +171,20 @@ namespace Yarn {
 
 		Text // a run of text until we hit other syntax
 	}
+
+    internal static class TokenTypeHelper {
+        static TokenTypeHelper() {
+            Values = Enum.GetValues(typeof(TokenType)).OfType<TokenType>().ToArray();
+            Strings = Values.Select(x => x.ToString()).ToArray();
+            Mapping = new Dictionary<string, TokenType>();
+            foreach (var v in Values)
+                Mapping.Add(v.ToString(), v);
+        }
+
+        public static TokenType[] Values;
+        public static string[] Strings;
+        public static Dictionary<string, TokenType> Mapping;
+    }
 	
 	// A parsed token.
 	internal class Token {
