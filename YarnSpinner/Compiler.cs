@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 namespace Yarn
 {
 
-	internal struct LineInfo {
+	public struct LineInfo {
 		public int lineNumber;
 		public string nodeName;
 
@@ -18,7 +18,7 @@ namespace Yarn
 
 
 	[JsonObject(MemberSerialization.OptIn)] // properties must opt-in to JSON serialization
-	internal class Program {
+	public class Program {
 
 		internal Dictionary<string,string> strings = new Dictionary<string, string> ();
 		internal Dictionary<string, LineInfo> lineInfo = new Dictionary<string, LineInfo>();
