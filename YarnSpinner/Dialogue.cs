@@ -79,6 +79,44 @@ namespace Yarn {
         public abstract void Clear();
     }
 
+	// A line, localised into the current locale.
+	// LocalisedLines are used in both lines, options, and shortcut options - basically,
+	// anything user-facing.
+	public class LocalisedLine
+	{
+		public string LineCode { get; set; }
+		public string LineText { get; set; }
+		public string Comment { get; set; }
+	}
+
+	// Very simple continuity class that keeps all variables in memory
+	public class MemoryVariableStore : Yarn.BaseVariableStorage
+	{
+		Dictionary<string, Value> variables = new Dictionary<string, Value>();
+
+		public override void SetValue(string variableName, Value value)
+		{
+			variables[variableName] = value;
+		}
+
+		public override Value GetValue(string variableName)
+		{
+			Value value = Value.NULL;
+			if (variables.ContainsKey(variableName))
+			{
+
+				value = variables[variableName];
+
+			}
+			return value;
+		}
+
+		public override void Clear()
+		{
+			variables.Clear();
+		}
+	}
+
 	// The Dialogue class is the main thing that clients will use.
 	public class Dialogue  {
 
@@ -146,16 +184,58 @@ namespace Yarn {
 		public const string DEFAULT_START = "Start";
 
 		// The loader contains all of the nodes we're going to run.
-		private Loader loader;
+		internal Loader loader;
 
 		// The Program is the compiled Yarn program.
-		private Program program;
+		internal Program program;
 
 		// The library contains all of the functions and operators we know about.
 		public Library library;
 
 		// The collection of nodes that we've seen.
-		private HashSet<String> visitedNodeNames = new HashSet<string>();
+        public Dictionary<String, int> visitedNodeCount = new Dictionary<string, int>();
+		
+        // A function exposed to Yarn that returns the number of times a node has been run.
+        // If no parameters are supplied, returns the number of time the current node
+        // has been run.
+        object YarnFunctionNodeVisitCount (Value[] parameters)
+        {
+            // Determine the node we're checking
+            string nodeName;
+
+            if (parameters.Length == 0) {
+                // No parameters? Check the current node
+                nodeName = vm.currentNodeName;
+            } else if (parameters.Length == 1) {
+                // A parameter? Check the named node
+                nodeName = parameters [0].AsString;
+
+                // Ensure this node exists
+                if (NodeExists (nodeName) == false) {
+                    var errorMessage = string.Format ("The node {0} does not " + "exist.", nodeName);
+                    LogErrorMessage (errorMessage);
+                    return 0;
+                }
+            } else {
+                // We got too many parameters
+                var errorMessage = string.Format ("Incorrect number of parameters to " + "visitCount (expected 0 or 1, got {0})", parameters.Length);
+                LogErrorMessage (errorMessage);
+                return 0;
+            }
+
+            // Figure out how many times this node was run
+            int visitCount = 0;
+            visitedNodeCount.TryGetValue (nodeName, out visitCount);
+
+            return visitCount;
+        }
+
+        // A Yarn function that returns true if the named node, or the current node 
+        // if no parameters were provided, has been visited at least once.
+        object YarnFunctionIsNodeVisited (Value[] parameters)
+        {
+            return (int)YarnFunctionNodeVisitCount(parameters) > 0;
+        }
 
 		public Dialogue(Yarn.VariableStorage continuity) {
 			this.continuity = continuity;
@@ -166,21 +246,92 @@ namespace Yarn {
 
 			// Register the "visited" function, which returns true if we've visited
 			// a node previously (nodes are marked as visited when we leave them)
-			library.RegisterFunction ("visited", 1, delegate(Yarn.Value[] parameters) {
-				var name = parameters[0].AsString;
-				return visitedNodeNames.Contains(name);
-			});
+            library.RegisterFunction ("visited", -1, (ReturningFunction)YarnFunctionIsNodeVisited);
+
+            // Register the "visitCount" function, which returns the number of times
+            // a node has been run (which increments when a node ends). If called with 
+            // no parameters, check the CURRENT node.
+            library.RegisterFunction ("visitCount", -1, (ReturningFunction)YarnFunctionNodeVisitCount);
 
 		}
 
 		// Load a file from disk.
 		public void LoadFile(string fileName, bool showTokens = false, bool showParseTree = false, string onlyConsiderNode=null) {
-			System.IO.StreamReader reader = new System.IO.StreamReader(fileName);
-			string inputString = reader.ReadToEnd ();
-			reader.Close ();
 
-			LoadString (inputString, fileName, showTokens, showParseTree, onlyConsiderNode);
+			// Is this a compiled program file?
+			if (fileName.EndsWith(".yarn.bytes")) {
 
+				var bytes = System.IO.File.ReadAllBytes(fileName);
+				LoadCompiledProgram(bytes, fileName);
+
+				return;
+			} else {
+				// It's source code, either a single node in text form or a JSON file
+				string inputString;
+				using (System.IO.StreamReader reader = new System.IO.StreamReader(fileName))
+				{
+					inputString = reader.ReadToEnd();
+				}
+
+				LoadString(inputString, fileName, showTokens, showParseTree, onlyConsiderNode);
+			}
+
+
+		}
+
+		public void LoadCompiledProgram(byte[] bytes, string fileName, CompiledFormat format = LATEST_FORMAT)
+		{
+
+			if (LogDebugMessage == null)
+			{
+				throw new YarnException("LogDebugMessage must be set before loading");
+			}
+
+			if (LogErrorMessage == null)
+			{
+				throw new YarnException("LogErrorMessage must be set before loading");
+			}
+
+			switch (format)
+			{
+				case CompiledFormat.V1:
+					LoadCompiledProgramV1(bytes);
+					break;
+				default:
+					throw new ArgumentOutOfRangeException();
+			}
+
+
+		}
+
+		private void LoadCompiledProgramV1(byte[] bytes)
+		{
+			using (var stream = new System.IO.MemoryStream(bytes))
+			{
+				using (var reader = new Newtonsoft.Json.Bson.BsonReader(stream))
+				{
+					var serializer = new Newtonsoft.Json.JsonSerializer();
+
+					try
+					{
+						// Load the stored program
+						var newProgram = serializer.Deserialize<Program>(reader);
+
+						// Merge it with our existing one, if present
+						if (program != null)
+						{
+							program.Include(newProgram);
+						}
+						else {
+							program = newProgram;
+						}
+					}
+					catch (Newtonsoft.Json.JsonReaderException e)
+					{
+						LogErrorMessage(string.Format("Cannot load compiled program: {0}", e.Message));
+					}
+				}
+			}
 		}
 
 		// Ask the loader to parse a string. Returns the number of nodes that were loaded.
@@ -194,7 +345,22 @@ namespace Yarn {
 				throw new YarnException ("LogErrorMessage must be set before loading");
 			}
 
-			program = loader.Load(text, library, fileName, program, showTokens, showParseTree, onlyConsiderNode);
+			// Try to infer the type
+
+			NodeFormat format;
+
+			if (text.StartsWith("[", StringComparison.Ordinal)) {
+				// starts with a {? this is probably a JSON array
+				format = NodeFormat.JSON;				 
+			} else if (text.Contains("---")) {
+				// contains a --- delimiter? probably multi node text
+				format = NodeFormat.Text;
+			} else {
+				// fall back to the single node format
+				format = NodeFormat.SingleNodeText;
+			}
+
+			program = loader.Load(text, library, fileName, program, showTokens, showParseTree, onlyConsiderNode, format);
 
 		}
 
@@ -235,7 +401,12 @@ namespace Yarn {
 			};
 
 			vm.nodeCompleteHandler = delegate(NodeCompleteResult result) {
-				visitedNodeNames.Add (vm.currentNodeName);
+
+                // get the count if it's there, otherwise it defaults to 0
+                int count = 0;
+                visitedNodeCount.TryGetValue(vm.currentNodeName, out count);
+
+                visitedNodeCount[vm.currentNodeName] = count + 1;
 				latestResult = result;
 			};
 
@@ -265,9 +436,15 @@ namespace Yarn {
 				vm.Stop();
 		}
 
-		public IEnumerable<string> visitedNodes {
+        public IEnumerable<string> visitedNodes {
 			get {
-				return visitedNodeNames;
+                return visitedNodeCount.Keys;
+			}
+            set {
+                visitedNodeCount = new Dictionary<string, int>();
+                foreach (var entry in visitedNodes) {
+                    visitedNodeCount[entry] = 1;
+                }				
 			}
 		}
 
@@ -288,6 +465,23 @@ namespace Yarn {
 			}
 		}
 
+		public Dictionary<string, string> GetTextForAllNodes() {
+			var d = new Dictionary<string,string>();
+
+			foreach (var node in program.nodes) {
+				var text = program.GetTextForNode(node.Key);
+
+				if (text == null)
+					continue;
+
+				d [node.Key] = text;
+			}
+
+			return d;
+		}
+
+		// Returns the source code for the node 'nodeName', 
+		// if that node was tagged with rawText.
 		public string GetTextForNode(string nodeName) {
 			if (program.nodes.Count == 0) {
 				LogErrorMessage ("No nodes are loaded!");
@@ -300,10 +494,56 @@ namespace Yarn {
 			}
 		}
 
+		public void AddStringTable(Dictionary<string, string> stringTable)
+		{
+			program.LoadStrings(stringTable);
+		}
+
+		public Dictionary<string,string> GetStringTable() {
+			return program.strings;
+		}
+
+		internal Dictionary<string,LineInfo> GetStringInfoTable() {
+			return program.lineInfo;
+		}
+
+		public enum CompiledFormat
+		{
+			V1
+		}
+
+		public const CompiledFormat LATEST_FORMAT = CompiledFormat.V1;
+
+		public byte[] GetCompiledProgram(CompiledFormat format = LATEST_FORMAT)
+		{
+
+			switch (format)
+			{
+				case CompiledFormat.V1:
+					return GetCompiledProgramV1();
+				default:
+					throw new ArgumentOutOfRangeException();
+			}
+		}
+
+		private byte[] GetCompiledProgramV1()
+		{
+			using (var outputStream = new System.IO.MemoryStream())
+			{
+				using (var bsonWriter = new Newtonsoft.Json.Bson.BsonWriter(outputStream))
+				{
+					var s = new Newtonsoft.Json.JsonSerializer();
+					s.Serialize(bsonWriter, this.program);
+				}
+
+				return outputStream.ToArray();
+			}
+		}
+
 		// Unloads ALL nodes.
 		public void UnloadAll(bool clearVisitedNodes = true) {
 			if (clearVisitedNodes)
-				visitedNodeNames.Clear();
+                visitedNodeCount.Clear();
 
 			program = null;
 
@@ -322,19 +562,21 @@ namespace Yarn {
 			if (program == null) {
 
 				if (program.nodes.Count > 0) {
-					LogDebugMessage ("Called NodeExists, but the program hasn't been compiled yet." +
-					"Nodes have been loaded, so I'm going to compile them.");
+					LogErrorMessage ("Internal consistency error: Called NodeExists, and " +
+					                 "there are nodes loaded, but the program hasn't " +
+					                 "been compiled yet, somehow?");
 
-					if (program == null) {
-						return false;
-					}
+					return false;
+
 				} else {
-					LogErrorMessage ("Tried to call NodeExists, but no nodes have been compiled!");
+					LogErrorMessage ("Tried to call NodeExists, but no nodes " +
+					                 "have been compiled!");
 					return false;
 				}
 			}
 			if (program.nodes == null || program.nodes.Count == 0) {
-				LogDebugMessage ("Called NodeExists, but there are zero nodes. This may be an error.");
+				LogDebugMessage ("Called NodeExists, but there are zero nodes. " +
+				                 "This may be an error.");
 				return false;
 			}
 			return program.nodes.ContainsKey(nodeName);

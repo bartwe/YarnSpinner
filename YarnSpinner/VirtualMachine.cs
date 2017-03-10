@@ -188,6 +188,11 @@ namespace Yarn
 
 				var lineText = program.GetString ((string)i.operandA);
 
+				if (lineText == null) {
+					dialogue.LogErrorMessage("No loaded string table includes line " + i.operandA);
+					break;
+				}
+
 				lineHandler (new Dialogue.LineResult (lineText));
 
 				break;
@@ -268,14 +273,19 @@ namespace Yarn
 						paramCount = (int)state.PopValue ().AsNumber;
 					}
 
-					// Get the parameters, which were pushed in reverse
-					Value[] parameters = new Value[paramCount];
-					for (int param = paramCount - 1; param >= 0; param--) {
-						parameters [param] = state.PopValue ();
-					}
+                    Value result;
+                    if (paramCount == 0) {
+                        result = function.Invoke();
+                    } else {
+                    	// Get the parameters, which were pushed in reverse
+    					Value[] parameters = new Value[paramCount];
+    					for (int param = paramCount - 1; param >= 0; param--) {
+    						parameters [param] = state.PopValue ();
+    					}
 
-					// Invoke the function
-					var result = function.InvokeWithArray (parameters);
+    					// Invoke the function
+    					result = function.InvokeWithArray (parameters);
+                    }
 
 					// If the function returns a value, push it
 					if (function.returnsValue) {
@@ -350,7 +360,7 @@ namespace Yarn
 					break;
 				}
 
-				if (dialogue.continuity.GetValue(SpecialVariables.ShuffleOptions).boolValue) {
+				if (dialogue.continuity.GetValue(SpecialVariables.ShuffleOptions).AsBool) {
 					// Shuffle the dialog options if needed
 					var n = state.currentOptions.Count;
 					for (int opt1 = 0; opt1 < n; opt1++) {
