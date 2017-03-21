@@ -215,7 +215,7 @@ namespace Yarn {
 				get
 				{
 					// If we have no tags list, or it's empty, return the empty list
-					if (tags == null || tags.Length == 0) {
+					if (string.IsNullOrEmpty(tags)) {
 						return new List<string>();
 					}
 
