@@ -217,7 +217,7 @@ namespace Yarn {
 		
 		public override string ToString() {
 			if (this.value != null) {
-				return string.Format("{0} ({1}) at {2}:{3} (state: {4})", type.ToString(), value.ToString(), lineNumber, columnNumber, lexerState);
+				return string.Format("{0} ({1}) at {2}:{3} (state: {4})", type.ToString(), value, lineNumber, columnNumber, lexerState);
 			} else {
 				return string.Format ("{0} at {1}:{2} (state: {3})", type, lineNumber, columnNumber, lexerState);
 			}

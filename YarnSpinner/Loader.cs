@@ -59,7 +59,7 @@ namespace Yarn {
 			// Sum up the result
 			var sb = new System.Text.StringBuilder();
 			foreach (var t in tokenList) {
-				sb.AppendLine (string.Format("{0} ({1} line {2})", t.ToString (), t.context, t.lineNumber));
+				sb.AppendLine (string.Format("{0} ({1} line {2})", t, t.context, t.lineNumber));
 			}
 
 			// Let's see what we got

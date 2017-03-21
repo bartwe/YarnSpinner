@@ -252,7 +252,7 @@ namespace Yarn {
 					line = p.ExpectSymbol(TokenType.Text).value as string;
 					type = Type.Line;
 				} else {
-					throw ParseException.Make(p.tokens.Peek(), "Expected a statement here but got " + p.tokens.Peek().ToString() +" instead (was there an unbalanced if statement earlier?)");
+					throw ParseException.Make(p.tokens.Peek(), "Expected a statement here but got " + p.tokens.Peek() +" instead (was there an unbalanced if statement earlier?)");
 				}
 
 				// Parse the optional tags that follow this statement
@@ -758,7 +758,7 @@ namespace Yarn {
 					value = Value.NULL;
 					break;
 				default:
-					throw ParseException.Make (t, "Invalid token type " + t.ToString ());
+					throw ParseException.Make (t, "Invalid token type " + t);
 				}
 			}
 
