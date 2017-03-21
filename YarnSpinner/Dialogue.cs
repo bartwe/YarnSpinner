@@ -268,15 +268,13 @@ namespace Yarn {
 
                 return;
             }
-            else {
-                // It's source code, either a single node in text form or a JSON file
-                string inputString;
-                using (var reader = new StreamReader(fileName)) {
-                    inputString = reader.ReadToEnd();
-                }
-
-                LoadString(inputString, fileName, showTokens, showParseTree, onlyConsiderNode);
+            // It's source code, either a single node in text form or a JSON file
+            string inputString;
+            using (var reader = new StreamReader(fileName)) {
+                inputString = reader.ReadToEnd();
             }
+
+            LoadString(inputString, fileName, showTokens, showParseTree, onlyConsiderNode);
         }
 
         public void LoadCompiledProgram(byte[] bytes, string fileName, CompiledFormat format = LATEST_FORMAT) {
@@ -430,9 +428,7 @@ namespace Yarn {
                 if (vm == null) {
                     return null;
                 }
-                else {
-                    return vm.currentNodeName;
-                }
+                return vm.currentNodeName;
             }
         }
 
@@ -458,13 +454,11 @@ namespace Yarn {
                 LogErrorMessage("No nodes are loaded!");
                 return null;
             }
-            else if (program.nodes.ContainsKey(nodeName)) {
+            if (program.nodes.ContainsKey(nodeName)) {
                 return program.GetTextForNode(nodeName);
             }
-            else {
-                LogErrorMessage("No node named " + nodeName);
-                return null;
-            }
+            LogErrorMessage("No node named " + nodeName);
+            return null;
         }
 
         public void AddStringTable(Dictionary<string, string> stringTable) {
@@ -531,11 +525,9 @@ namespace Yarn {
 
                     return false;
                 }
-                else {
-                    LogErrorMessage("Tried to call NodeExists, but no nodes " +
-                                    "have been compiled!");
-                    return false;
-                }
+                LogErrorMessage("Tried to call NodeExists, but no nodes " +
+                                "have been compiled!");
+                return false;
             }
             if (program.nodes == null || program.nodes.Count == 0) {
                 LogDebugMessage("Called NodeExists, but there are zero nodes. " +

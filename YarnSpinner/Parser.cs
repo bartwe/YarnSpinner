@@ -121,9 +121,7 @@ namespace Yarn {
                     }
                     return s.ToString();
                 }
-                else {
-                    return "";
-                }
+                return "";
             }
 
             public override string ToString() {
@@ -542,9 +540,7 @@ namespace Yarn {
                 if (label != null) {
                     return Tab(indentLevel, string.Format("Option: \"{0}\" -> {1}", label, destination));
                 }
-                else {
-                    return Tab(indentLevel, string.Format("Option: -> {0}", destination));
-                }
+                return Tab(indentLevel, string.Format("Option: -> {0}", destination));
             }
         }
 
