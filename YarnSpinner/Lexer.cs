@@ -313,7 +313,7 @@ namespace Yarn {
 
 			public override string ToString ()
 			{
-				return string.Format (string.Format ("[TokenRule: {0} - {1}]", type, this.regex));
+				return string.Format ("[TokenRule: {0} - {1}]", type, this.regex);
 			}
 
 		}
