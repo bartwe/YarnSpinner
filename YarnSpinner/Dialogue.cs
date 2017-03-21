@@ -387,7 +387,7 @@ namespace Yarn {
 
             vm.commandHandler = delegate (CommandResult result) {
                 // Is it the special custom command "<<stop>>"?
-                if (result is CommandResult && (result as CommandResult).command.text == "stop") {
+                if (result != null && result.command.text == "stop") {
                     vm.Stop();
                 }
                 latestResult = result;
@@ -396,7 +396,7 @@ namespace Yarn {
             vm.nodeCompleteHandler = delegate (NodeCompleteResult result) {
 
                 // get the count if it's there, otherwise it defaults to 0
-                int count = 0;
+                int count;
                 visitedNodeCount.TryGetValue(vm.currentNodeName, out count);
 
                 visitedNodeCount[vm.currentNodeName] = count + 1;
