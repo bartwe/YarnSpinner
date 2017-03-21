@@ -25,398 +25,348 @@ SOFTWARE.
 */
 
 // Comment out to not catch exceptions
-#define CATCH_EXCEPTIONS 
+
+#define CATCH_EXCEPTIONS
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 
-
 namespace Yarn {
+    public enum NodeFormat {
+        Unknown, // an unknown type
 
-	public enum NodeFormat
-	{
-		Unknown, // an unknown type
+        SingleNodeText, // a plain text file containing a single node with no metadata
 
-		SingleNodeText, // a plain text file containing a single node with no metadata
+        JSON, // a JSON file containing multiple nodes with metadata
 
-		JSON, // a JSON file containing multiple nodes with metadata
-
-		Text, //  a text file containing multiple nodes with metadata
-
-	}
+        Text, //  a text file containing multiple nodes with metadata
+    }
 
 
+    public class Loader {
+        readonly Dialogue dialogue;
 
-	public class Loader {
+        public Program program { get; private set; }
 
-		private Dialogue dialogue;
+        // Prints out the list of tokens that the tokeniser found for this node
+        void PrintTokenList(IEnumerable<Token> tokenList) {
+            // Sum up the result
+            var sb = new StringBuilder();
+            foreach (var t in tokenList) {
+                sb.AppendLine(string.Format("{0} ({1} line {2})", t, t.context, t.lineNumber));
+            }
 
-		public Program program { get; private set; }
+            // Let's see what we got
+            dialogue.LogDebugMessage("Tokens:");
+            dialogue.LogDebugMessage(sb.ToString());
+        }
 
-		// Prints out the list of tokens that the tokeniser found for this node
-		void PrintTokenList(IEnumerable<Token> tokenList) {
-			// Sum up the result
-			var sb = new System.Text.StringBuilder();
-			foreach (var t in tokenList) {
-				sb.AppendLine (string.Format("{0} ({1} line {2})", t, t.context, t.lineNumber));
-			}
+        // Prints the parse tree for the node
+        void PrintParseTree(Parser.ParseNode rootNode) {
+            dialogue.LogDebugMessage("Parse Tree:");
+            dialogue.LogDebugMessage(rootNode.PrintTree(0));
+        }
 
-			// Let's see what we got
-			dialogue.LogDebugMessage("Tokens:");
-			dialogue.LogDebugMessage(sb.ToString());
+        // Prepares a loader. 'implementation' is used for logging.
+        public Loader(Dialogue dialogue) {
+            if (dialogue == null)
+                throw new ArgumentNullException("dialogue");
 
-		}
+            this.dialogue = dialogue;
+        }
 
-		// Prints the parse tree for the node
-		void PrintParseTree(Yarn.Parser.ParseNode rootNode) {
-			dialogue.LogDebugMessage("Parse Tree:");
-			dialogue.LogDebugMessage(rootNode.PrintTree(0));
+        // Given a bunch of raw text, load all nodes that were inside it.
+        // You can call this multiple times to append to the collection of nodes,
+        // but note that new nodes will replace older ones with the same name.
+        // Returns the number of nodes that were loaded.
+        public Program Load(string text, Library library, string fileName, Program includeProgram, bool showTokens, bool showParseTree, string onlyConsiderNode, NodeFormat format) {
+            // The final parsed nodes that were in the file we were given
+            var nodes = new Dictionary<string, Parser.Node>();
 
-		}
+            // Load the raw data and get the array of node title-text pairs
 
-		// Prepares a loader. 'implementation' is used for logging.
-		public Loader(Dialogue dialogue) {
-			if (dialogue == null)
-				throw new ArgumentNullException ("dialogue");
-			
-			this.dialogue = dialogue;
-
-		}
-
-		// Given a bunch of raw text, load all nodes that were inside it.
-		// You can call this multiple times to append to the collection of nodes,
-		// but note that new nodes will replace older ones with the same name.
-		// Returns the number of nodes that were loaded.
-		public Program Load(string text, Library library, string fileName, Program includeProgram, bool showTokens, bool showParseTree, string onlyConsiderNode, NodeFormat format)
-		{
-
-			// The final parsed nodes that were in the file we were given
-			Dictionary<string, Yarn.Parser.Node> nodes = new Dictionary<string, Parser.Node>();
-
-			// Load the raw data and get the array of node title-text pairs
-
-			if (format == NodeFormat.Unknown) {
-				format = GetFormatFromFileName(fileName);
-			}
+            if (format == NodeFormat.Unknown) {
+                format = GetFormatFromFileName(fileName);
+            }
 
 
-			var nodeInfos = GetNodesFromText(text, format);
+            var nodeInfos = GetNodesFromText(text, format);
 
-			int nodesLoaded = 0;
+            var nodesLoaded = 0;
 
-			foreach (NodeInfo nodeInfo in nodeInfos)
-			{
+            foreach (var nodeInfo in nodeInfos) {
+                if (onlyConsiderNode != null && nodeInfo.title != onlyConsiderNode)
+                    continue;
 
-				if (onlyConsiderNode != null && nodeInfo.title != onlyConsiderNode)
-					continue;
-
-				// Attempt to parse every node; log if we encounter any errors
+                // Attempt to parse every node; log if we encounter any errors
 #if CATCH_EXCEPTIONS
-				try
-				{
+                try {
 #endif
 
-					if (nodes.ContainsKey(nodeInfo.title))
-					{
-						throw new InvalidOperationException("Attempted to load a node called " +
-							nodeInfo.title + ", but a node with that name has already been loaded!");
-					}
+                    if (nodes.ContainsKey(nodeInfo.title)) {
+                        throw new InvalidOperationException("Attempted to load a node called " +
+                                                            nodeInfo.title + ", but a node with that name has already been loaded!");
+                    }
 
-					var lexer = new Lexer();
-					var tokens = lexer.Tokenise(nodeInfo.title, nodeInfo.body);
+                    var lexer = new Lexer();
+                    var tokens = lexer.Tokenise(nodeInfo.title, nodeInfo.body);
 
-					if (showTokens)
-						PrintTokenList(tokens);
+                    if (showTokens)
+                        PrintTokenList(tokens);
 
-					var node = new Parser(tokens, library).Parse();
+                    var node = new Parser(tokens, library).Parse();
 
-					// If this node is tagged "rawText", then preserve its source
-					if (string.IsNullOrEmpty(nodeInfo.tags) == false &&
-						nodeInfo.tags.Contains("rawText"))
-					{
-						node.source = nodeInfo.body;
-					}
+                    // If this node is tagged "rawText", then preserve its source
+                    if (string.IsNullOrEmpty(nodeInfo.tags) == false &&
+                        nodeInfo.tags.Contains("rawText")) {
+                        node.source = nodeInfo.body;
+                    }
 
-					node.name = nodeInfo.title;
+                    node.name = nodeInfo.title;
 
-					node.nodeTags = nodeInfo.tagsList;
+                    node.nodeTags = nodeInfo.tagsList;
 
-					if (showParseTree)
-						PrintParseTree(node);
+                    if (showParseTree)
+                        PrintParseTree(node);
 
-					nodes[nodeInfo.title] = node;
+                    nodes[nodeInfo.title] = node;
 
-					nodesLoaded++;
+                    nodesLoaded++;
 
 #if CATCH_EXCEPTIONS
-				}
-				catch (Yarn.TokeniserException t)
-				{
-					// Add file information
-					var message = string.Format("In file {0}: Error reading node {1}: {2}", fileName, nodeInfo.title, t.Message);
-					throw new Yarn.TokeniserException(message);
-				}
-				catch (Yarn.ParseException p)
-				{
-					var message = string.Format("In file {0}: Error parsing node {1}: {2}", fileName, nodeInfo.title, p.Message);
-					throw new Yarn.ParseException(message);
-				}
-				catch (InvalidOperationException e)
-				{
-					var message = string.Format("In file {0}: Error reading node {1}: {2}", fileName, nodeInfo.title, e.Message);
-					throw new InvalidOperationException(message);
-				}
+                }
+                catch (TokeniserException t) {
+                    // Add file information
+                    var message = string.Format("In file {0}: Error reading node {1}: {2}", fileName, nodeInfo.title, t.Message);
+                    throw new TokeniserException(message);
+                }
+                catch (ParseException p) {
+                    var message = string.Format("In file {0}: Error parsing node {1}: {2}", fileName, nodeInfo.title, p.Message);
+                    throw new ParseException(message);
+                }
+                catch (InvalidOperationException e) {
+                    var message = string.Format("In file {0}: Error reading node {1}: {2}", fileName, nodeInfo.title, e.Message);
+                    throw new InvalidOperationException(message);
+                }
 #endif
+            }
+
+            var compiler = new Compiler(fileName);
+
+            foreach (var node in nodes) {
+                compiler.CompileNode(node.Value);
+            }
+
+            if (includeProgram != null) {
+                compiler.program.Include(includeProgram);
+            }
+
+            return compiler.program;
+        }
+
+        // The raw text of the Yarn node, plus metadata
+        // All properties are serialised except tagsList, which is a derived property
+        [JsonObject(MemberSerialization.OptOut)]
+        public struct NodeInfo {
+            public struct Position {
+                public int x { get; set; }
+                public int y { get; set; }
+            }
 
 
-			}
+            public string title { get; set; }
+            public string body { get; set; }
 
-			var compiler = new Yarn.Compiler(fileName);
+            // The raw "tags" field, containing space-separated tags. This is written
+            // to the file.
+            public string tags { get; set; }
 
-			foreach (var node in nodes)
-			{
-				compiler.CompileNode(node.Value);
-			}
+            public int colorID { get; set; }
+            public Position position { get; set; }
 
-			if (includeProgram != null)
-			{
-				compiler.program.Include(includeProgram);
-			}
+            // The tags for this node, as a list of individual strings.
+            [JsonIgnore]
+            public List<string> tagsList {
+                get {
+                    // If we have no tags list, or it's empty, return the empty list
+                    if (string.IsNullOrEmpty(tags)) {
+                        return new List<string>();
+                    }
 
-			return compiler.program;
+                    return new List<string>(tags.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+                }
+            }
+        }
 
-		}
+        internal static NodeFormat GetFormatFromFileName(string fileName) {
+            NodeFormat format;
+            if (fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
+                format = NodeFormat.JSON;
+            }
+            else if (fileName.EndsWith(".yarn.txt", StringComparison.OrdinalIgnoreCase)) {
+                format = NodeFormat.Text;
+            }
+            else if (fileName.EndsWith(".node", StringComparison.OrdinalIgnoreCase)) {
+                format = NodeFormat.SingleNodeText;
+            }
+            else {
+                throw new FormatException(string.Format("Unknown file format for file '{0}'", fileName));
+            }
 
-		// The raw text of the Yarn node, plus metadata
-		// All properties are serialised except tagsList, which is a derived property
-		[JsonObject(MemberSerialization.OptOut)]
-		public struct NodeInfo {
-			public struct Position {
-				public int x { get; set; }
-				public int y { get; set; }
-			}
+            return format;
+        }
 
+        // Given either Twine, JSON or XML input, return an array
+        // containing info about the nodes in that file
+        public NodeInfo[] GetNodesFromText(string text, NodeFormat format) {
+            // All the nodes we found in this file
+            var nodes = new List<NodeInfo>();
 
-			public string title { get; set; }
-			public string body { get; set; }
+            switch (format) {
+                case NodeFormat.SingleNodeText:
+                    // If it starts with a comment, treat it as a single-node file
+                    var nodeInfo = new NodeInfo();
+                    nodeInfo.title = "Start";
+                    nodeInfo.body = text;
+                    nodes.Add(nodeInfo);
+                    break;
+                case NodeFormat.JSON:
+                    // Parse it as JSON
+                    try {
+                        nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(text);
+                    }
+                    catch (JsonReaderException e) {
+                        dialogue.LogErrorMessage("Error parsing Yarn input: " + e.Message);
+                    }
 
-			// The raw "tags" field, containing space-separated tags. This is written
-			// to the file.
-			public string tags { get; set; }
+                    break;
+                case NodeFormat.Text:
 
-			public int colorID { get; set; }
-			public Position position { get; set; }
+                    // check for the existence of at least one "---"+newline sentinel, which divides
+                    // the headers from the body
 
-			// The tags for this node, as a list of individual strings.
-			[JsonIgnore]
-			public List<string> tagsList
-			{
-				get
-				{
-					// If we have no tags list, or it's empty, return the empty list
-					if (string.IsNullOrEmpty(tags)) {
-						return new List<string>();
-					}
+                    // we use a regex to match either \r\n or \n line endings
+                    if (Regex.IsMatch(text, "---.?\n") == false) {
+                        dialogue.LogErrorMessage("Error parsing input: text appears corrupt (no header sentinel");
+                        break;
+                    }
 
-					return new List<string>(tags.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
-				}
-			}
+                    var headerRegex = new Regex("(?<field>.*): *(?<value>.*)");
 
-		}
+                    var nodeProperties = typeof(NodeInfo).GetProperties();
 
-		internal static NodeFormat GetFormatFromFileName(string fileName)
-		{
-			NodeFormat format;
-			if (fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-			{
-				format = NodeFormat.JSON;
-			}
-			else if (fileName.EndsWith(".yarn.txt", StringComparison.OrdinalIgnoreCase))
-			{
-				format = NodeFormat.Text;
-			}
-			else if (fileName.EndsWith(".node", StringComparison.OrdinalIgnoreCase))
-			{
-				format = NodeFormat.SingleNodeText;
-			}
-			else {
-				throw new FormatException(string.Format("Unknown file format for file '{0}'", fileName));
-			}
+                    var lineNumber = 0;
 
-			return format;
-		}
+                    using (var reader = new StringReader(text)) {
+                        string line;
+                        while ((line = reader.ReadLine()) != null) {
+                            // Create a new node
+                            var node = new NodeInfo();
 
-		// Given either Twine, JSON or XML input, return an array
-		// containing info about the nodes in that file
-		public NodeInfo[] GetNodesFromText(string text, NodeFormat format)
-		{
-			// All the nodes we found in this file
-			var nodes = new List<NodeInfo> ();
+                            // Read header lines
+                            do {
+                                lineNumber++;
 
-			switch (format)
-			{
-				case NodeFormat.SingleNodeText:
-					// If it starts with a comment, treat it as a single-node file
-					var nodeInfo = new NodeInfo();
-					nodeInfo.title = "Start";
-					nodeInfo.body = text;
-					nodes.Add(nodeInfo);
-					break;
-				case NodeFormat.JSON:
-					// Parse it as JSON
-					try
-					{
-						nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(text);
-					}
-					catch (JsonReaderException e)
-					{
-						dialogue.LogErrorMessage("Error parsing Yarn input: " + e.Message);
-					}
+                                // skip empty lines
+                                if (line.Length == 0) {
+                                    continue;
+                                }
 
-					break;
-				case NodeFormat.Text:
+                                // Attempt to parse the header
+                                var headerMatches = headerRegex.Match(line);
 
-					// check for the existence of at least one "---"+newline sentinel, which divides
-					// the headers from the body
+                                if (headerMatches == null) {
+                                    dialogue.LogErrorMessage(string.Format("Line {0}: Can't parse header '{1}'", lineNumber, line));
+                                    continue;
+                                }
 
-					// we use a regex to match either \r\n or \n line endings
-					if (System.Text.RegularExpressions.Regex.IsMatch(text, "---.?\n") == false) {
-						dialogue.LogErrorMessage("Error parsing input: text appears corrupt (no header sentinel");
-						break;
-					}
+                                var field = headerMatches.Groups["field"].Value;
+                                var value = headerMatches.Groups["value"].Value;
 
-					var headerRegex = new System.Text.RegularExpressions.Regex("(?<field>.*): *(?<value>.*)");
+                                // Attempt to set the appropriate property using this field
+                                foreach (var property in nodeProperties) {
+                                    if (property.Name != field) {
+                                        continue;
+                                    }
 
-					var nodeProperties = typeof(NodeInfo).GetProperties();
+                                    // skip properties that can't be written to
+                                    if (property.CanWrite == false) {
+                                        continue;
+                                    }
+                                    try {
+                                        var propertyType = property.PropertyType;
+                                        object convertedValue;
+                                        if (propertyType.IsAssignableFrom(typeof(string))) {
+                                            convertedValue = value;
+                                        }
+                                        else if (propertyType.IsAssignableFrom(typeof(int))) {
+                                            convertedValue = int.Parse(value);
+                                        }
+                                        else if (propertyType.IsAssignableFrom(typeof(NodeInfo.Position))) {
+                                            var components = value.Split(',');
 
-					int lineNumber = 0;
+                                            // we expect 2 components: x and y
+                                            if (components.Length != 2) {
+                                                throw new FormatException();
+                                            }
 
-					using (var reader = new System.IO.StringReader(text))
-					{
-						string line;
-						while ((line = reader.ReadLine()) != null)
-						{
-							
-							// Create a new node
-							NodeInfo node = new NodeInfo();
+                                            var position = new NodeInfo.Position();
+                                            position.x = int.Parse(components[0]);
+                                            position.y = int.Parse(components[1]);
 
-							// Read header lines
-							do
-							{
-								lineNumber++;
+                                            convertedValue = position;
+                                        }
+                                        else {
+                                            throw new NotSupportedException();
+                                        }
+                                        // we need to box this because structs are value types,
+                                        // so calling SetValue using 'node' would just modify a copy of 'node'
+                                        object box = node;
+                                        property.SetValue(box, convertedValue, null);
+                                        node = (NodeInfo)box;
+                                        break;
+                                    }
+                                    catch (FormatException) {
+                                        dialogue.LogErrorMessage(string.Format("{0}: Error setting '{1}': invalid value '{2}'", lineNumber, field, value));
+                                    }
+                                    catch (NotSupportedException) {
+                                        dialogue.LogErrorMessage(string.Format("{0}: Error setting '{1}': This property cannot be set", lineNumber, field));
+                                    }
+                                }
+                            } while ((line = reader.ReadLine()) != "---");
 
-								// skip empty lines
-								if (line.Length == 0)
-								{
-									continue;
-								}
+                            lineNumber++;
 
-								// Attempt to parse the header
-								var headerMatches = headerRegex.Match(line);
+                            // We're past the header; read the body
 
-								if (headerMatches == null)
-								{
-									dialogue.LogErrorMessage(string.Format("Line {0}: Can't parse header '{1}'", lineNumber, line));
-									continue;
-								}
+                            var lines = new List<string>();
 
-								var field = headerMatches.Groups["field"].Value;
-								var value = headerMatches.Groups["value"].Value;
+                            // Read header lines until we hit the end of node sentinel or the end of the file
+                            while ((line = reader.ReadLine()) != "===" && line != null) {
+                                lineNumber++;
+                                lines.Add(line);
+                            }
+                            // We're done reading the lines! Zip 'em up into a string and
+                            // store it in the body
+                            node.body = string.Join("\n", lines.ToArray());
 
-								// Attempt to set the appropriate property using this field
-								foreach (var property in nodeProperties)
-								{
-									if (property.Name != field) {
-										continue;
-									}
+                            // And add this node to the list
+                            nodes.Add(node);
 
-									// skip properties that can't be written to
-									if (property.CanWrite == false)
-									{
-										continue;
-									}
-									try
-									{
-										var propertyType = property.PropertyType;
-										object convertedValue;
-										if (propertyType.IsAssignableFrom(typeof(string)))
-										{
-											convertedValue = value;
-										}
-										else if (propertyType.IsAssignableFrom(typeof(int)))
-										{
-											convertedValue = int.Parse(value);
-										}
-										else if (propertyType.IsAssignableFrom(typeof(NodeInfo.Position)))
-										{
-											var components = value.Split(',');
+                            // And now we're ready to move on to the next line!
+                        }
+                    }
+                    break;
+                default:
+                    throw new InvalidOperationException();
+            }
 
-											// we expect 2 components: x and y
-											if (components.Length != 2)
-											{
-												throw new FormatException();
-											}
-
-											var position = new NodeInfo.Position();
-											position.x = int.Parse(components[0]);
-											position.y = int.Parse(components[1]);
-
-											convertedValue = position;
-										}
-										else {
-											throw new NotSupportedException();
-										}
-										// we need to box this because structs are value types,
-										// so calling SetValue using 'node' would just modify a copy of 'node'
-										object box = node;
-										property.SetValue(box, convertedValue, null);
-										node = (NodeInfo)box;
-										break;
-									}
-									catch (FormatException)
-									{
-										dialogue.LogErrorMessage(string.Format("{0}: Error setting '{1}': invalid value '{2}'", lineNumber, field, value));
-									}
-									catch (NotSupportedException)
-									{
-										dialogue.LogErrorMessage(string.Format("{0}: Error setting '{1}': This property cannot be set", lineNumber, field));
-									}
-								}
-							} while ((line = reader.ReadLine()) != "---");
-
-							lineNumber++;
-
-							// We're past the header; read the body
-
-							var lines = new List<string>();
-
-							// Read header lines until we hit the end of node sentinel or the end of the file
-							while ((line = reader.ReadLine()) != "===" && line != null)
-							{
-								lineNumber++;
-								lines.Add(line);	
-							}
-							// We're done reading the lines! Zip 'em up into a string and
-						    // store it in the body
-							node.body = string.Join("\n", lines.ToArray());
-
-						    // And add this node to the list
-							nodes.Add(node);
-
-						    // And now we're ready to move on to the next line!
-										    
-						}
-					}
-					break;
-				default:
-					throw new InvalidOperationException();
-			}
-
-			// hooray we're done
-			return nodes.ToArray();
-		}
-
-	}
-
+            // hooray we're done
+            return nodes.ToArray();
+        }
+    }
 }

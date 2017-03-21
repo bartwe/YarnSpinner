@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 
 namespace Yarn {
-    internal class VirtualMachine {
-
+    class VirtualMachine {
         internal class State {
-
             // The name of the node that we're currently in
             public string currentNodeName;
 
@@ -16,7 +14,7 @@ namespace Yarn {
             public List<KeyValuePair<string, string>> currentOptions = new List<KeyValuePair<string, string>>();
 
             // The value stack
-            private Stack<Value> stack = new Stack<Value>();
+            readonly Stack<Value> stack = new Stack<Value>();
 
             // Methods for working with the stack
             public void PushValue(object o) {
@@ -56,8 +54,11 @@ namespace Yarn {
         }
 
         public delegate void LineHandler(Dialogue.LineResult line);
+
         public delegate void OptionsHandler(Dialogue.OptionSetResult options);
+
         public delegate void CommandHandler(Dialogue.CommandResult command);
+
         public delegate void NodeCompleteHandler(Dialogue.NodeCompleteResult complete);
 
         public LineHandler lineHandler;
@@ -65,19 +66,15 @@ namespace Yarn {
         public CommandHandler commandHandler;
         public NodeCompleteHandler nodeCompleteHandler;
 
-        private Dialogue dialogue;
+        readonly Dialogue dialogue;
 
-        private Program program;
-        private State state = new State();
+        readonly Program program;
+        State state = new State();
 
-        private Random random = new Random();
+        readonly Random random = new Random();
 
 
-        public string currentNodeName {
-            get {
-                return state.currentNodeName;
-            }
-        }
+        public string currentNodeName { get { return state.currentNodeName; } }
 
         public enum ExecutionState {
             Stopped,
@@ -85,11 +82,10 @@ namespace Yarn {
             Running
         }
 
-        private ExecutionState _executionState;
+        ExecutionState _executionState;
+
         public ExecutionState executionState {
-            get {
-                return _executionState;
-            }
+            get { return _executionState; }
             private set {
                 _executionState = value;
                 if (_executionState == ExecutionState.Stopped) {
@@ -102,7 +98,6 @@ namespace Yarn {
 
         public bool SetNode(string nodeName) {
             if (program.nodes.ContainsKey(nodeName) == false) {
-
                 var error = "No node named " + nodeName;
                 dialogue.LogErrorMessage(error);
                 executionState = ExecutionState.Stopped;
@@ -127,7 +122,6 @@ namespace Yarn {
 
         // Executes the next instruction in the current node.
         internal void RunNext() {
-
             if (executionState == ExecutionState.WaitingOnOptionSelection) {
                 dialogue.LogErrorMessage("Cannot continue running dialogue. Still waiting on option selection.");
                 executionState = ExecutionState.Stopped;
@@ -137,7 +131,7 @@ namespace Yarn {
             if (executionState == ExecutionState.Stopped)
                 executionState = ExecutionState.Running;
 
-            Instruction currentInstruction = currentNode.instructions[state.programCounter];
+            var currentInstruction = currentNode.instructions[state.programCounter];
 
             RunInstruction(currentInstruction);
 
@@ -148,23 +142,18 @@ namespace Yarn {
                 nodeCompleteHandler(new Dialogue.NodeCompleteResult(null));
                 dialogue.LogDebugMessage("Run complete.");
             }
-
         }
 
         // Looks up the instruction number for a named label in the current node.
         internal int FindInstructionPointForLabel(string labelName) {
-
             if (currentNode.labels.ContainsKey(labelName) == false) {
                 // Couldn't find the node..
                 throw new IndexOutOfRangeException("Unknown label " +
-                    labelName + " in node " + state.currentNodeName);
+                                                   labelName + " in node " + state.currentNodeName);
             }
 
             return currentNode.labels[labelName];
-
-
         }
-
 
 
         internal void RunInstruction(Instruction i) {
@@ -200,7 +189,7 @@ namespace Yarn {
                     // Passes a string to the client as a custom command
                     commandHandler(
                         new Dialogue.CommandResult((string)i.operandA)
-                    );
+                        );
 
                     break;
                 case ByteCode.PushString:
@@ -278,8 +267,8 @@ namespace Yarn {
                         }
                         else {
                             // Get the parameters, which were pushed in reverse
-                            Value[] parameters = new Value[paramCount];
-                            for (int param = paramCount - 1; param >= 0; param--) {
+                            var parameters = new Value[paramCount];
+                            for (var param = paramCount - 1; param >= 0; param--) {
                                 parameters[param] = state.PopValue();
                             }
 
@@ -334,7 +323,6 @@ namespace Yarn {
                     SetNode(nodeName);
 
 
-
                     break;
                 case ByteCode.AddOption:
 
@@ -364,8 +352,8 @@ namespace Yarn {
                     if (dialogue.continuity.GetValue(SpecialVariables.ShuffleOptions).AsBool) {
                         // Shuffle the dialog options if needed
                         var n = state.currentOptions.Count;
-                        for (int opt1 = 0; opt1 < n; opt1++) {
-                            int opt2 = opt1 + (int)(random.NextDouble() * (n - opt1)); // r.Next(0, state.currentOptions.Count-1);
+                        for (var opt1 = 0; opt1 < n; opt1++) {
+                            var opt2 = opt1 + (int)(random.NextDouble() * (n - opt1)); // r.Next(0, state.currentOptions.Count-1);
                             var temp = state.currentOptions[opt2];
                             state.currentOptions[opt2] = state.currentOptions[opt1];
                             state.currentOptions[opt1] = temp;
@@ -382,14 +370,12 @@ namespace Yarn {
                     }
 
 
-
                     // We can't continue until our client tell us which option to pick
                     executionState = ExecutionState.WaitingOnOptionSelection;
 
                     // Pass the options set to the client, as well as a delegate for them to call when the
                     // user has made a selection
-                    optionsHandler(new Dialogue.OptionSetResult(optionStrings, optionHashes, delegate (int selectedOption) {
-
+                    optionsHandler(new Dialogue.OptionSetResult(optionStrings, optionHashes, delegate(int selectedOption) {
                         // we now know what number option was selected; push the corresponding node name
                         // to the stack
                         var destinationNode = state.currentOptions[selectedOption].Value;
@@ -401,7 +387,6 @@ namespace Yarn {
 
                         // We can now also keep running
                         executionState = ExecutionState.Running;
-
                     }));
 
                     break;
@@ -413,8 +398,5 @@ namespace Yarn {
                     throw new ArgumentOutOfRangeException();
             }
         }
-
-
     }
 }
-
