@@ -48,7 +48,7 @@ namespace Yarn
 			}
 		}
 
-		private int stringCount = 0;
+		private int stringCount;
 
 		// Loads a new string table into the program. The string table is
 		// merged with any existing strings, with the new table taking
@@ -392,7 +392,7 @@ namespace Yarn
 
 		}
 
-		private int labelCount = 0;
+		private int labelCount;
 
 		// Generates a unique label name to use
 		string RegisterLabel(string commentary = null) {
