@@ -102,21 +102,21 @@ namespace Yarn
 		public Value (object value)
 		{
 			// Copy an existing value
-			if (typeof(Value).IsInstanceOfType(value)) {
-				var otherValue = value as Value;
-				type = otherValue.type;
+            var valueAsValue = value as Value;
+            if (valueAsValue != null) {
+				type = valueAsValue.type;
 				switch (type) {
 				case Type.Number:
-					numberValue = otherValue.numberValue;
+					numberValue = valueAsValue.numberValue;
 					break;
 				case Type.String:
-					stringValue = otherValue.stringValue;
+					stringValue = valueAsValue.stringValue;
 					break;
 				case Type.Bool:
-					boolValue = otherValue.boolValue;
+					boolValue = valueAsValue.boolValue;
 					break;
 				case Type.Variable:
-					variableName = otherValue.variableName;
+					variableName = valueAsValue.variableName;
 					break;
 				case Type.Null:
 					break;
@@ -129,20 +129,20 @@ namespace Yarn
 				type = Type.Null;
 				return;
 			}
-			if (value.GetType() == typeof(string) ) {
+            var valueAsString = value as String;
+            if (valueAsString != null) {
 				type = Type.String;
-                stringValue = System.Convert.ToString(value);
+                stringValue = valueAsString;
 				return;
 			}
-			if (value.GetType() == typeof(int) ||
-				value.GetType() == typeof(float) ||
-				value.GetType() == typeof(double)) {
+			if (value is int ||
+				value is float ||
+				value is double) {
 				type = Type.Number;
                 numberValue = System.Convert.ToSingle(value);
-				
 				return;
 			}
-			if (value.GetType() == typeof(bool) ) {
+			if (value is bool ) {
 				type = Type.Bool;
                 boolValue = System.Convert.ToBoolean(value);
 				return;
