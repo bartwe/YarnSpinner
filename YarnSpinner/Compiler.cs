@@ -17,11 +17,13 @@ namespace Yarn {
 
     [JsonObject(MemberSerialization.OptIn)] // properties must opt-in to JSON serialization
     public class Program {
-        internal Dictionary<string, string> strings = new Dictionary<string, string>();
+        [JsonProperty] internal Dictionary<string, string> strings = new Dictionary<string, string>();
         internal Dictionary<string, LineInfo> lineInfo = new Dictionary<string, LineInfo>();
 
         [JsonProperty] internal Dictionary<string, Node> nodes = new Dictionary<string, Node>();
 
+        /*
+         * BW: 20170521 we actually need the original english text too so that we can bind inline variables correctly for later translation
         // When saving programs, we want to save only lines that do NOT have a line: key.
         // This is because these lines will be loaded from a string table.
         // However, because certain strings (like those used in expressions) won't have tags,
@@ -43,6 +45,7 @@ namespace Yarn {
                 return result;
             }
         }
+        */
 
         int stringCount;
 
