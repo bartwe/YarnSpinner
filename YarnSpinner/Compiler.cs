@@ -350,7 +350,7 @@ namespace Yarn {
 
                     Emit(compiledNode, ByteCode.ShowOptions);
 
-                    if (flags.DisableShuffleOptionsAfterNextSet == true) {
+                    if (flags.DisableShuffleOptionsAfterNextSet) {
                         Emit(compiledNode, ByteCode.PushBool, false);
                         Emit(compiledNode, ByteCode.StoreVariable, VirtualMachine.SpecialVariables.ShuffleOptions);
                         Emit(compiledNode, ByteCode.Pop);
@@ -504,7 +504,7 @@ namespace Yarn {
 
             Emit(node, ByteCode.ShowOptions);
 
-            if (flags.DisableShuffleOptionsAfterNextSet == true) {
+            if (flags.DisableShuffleOptionsAfterNextSet) {
                 Emit(node, ByteCode.PushBool, false);
                 Emit(node, ByteCode.StoreVariable, VirtualMachine.SpecialVariables.ShuffleOptions);
                 Emit(node, ByteCode.Pop);

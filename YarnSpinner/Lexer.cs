@@ -248,7 +248,7 @@ namespace Yarn {
                 var delimiterRules = new List<string>();
 
                 foreach (var otherRule in tokenRules) {
-                    if (otherRule.delimitsText == true)
+                    if (otherRule.delimitsText)
                         delimiterRules.Add(string.Format("({0})", otherRule.regex.ToString().Substring(2)));
                 }
 
@@ -615,7 +615,7 @@ namespace Yarn {
 
                         EnterState(states[rule.entersState]);
 
-                        if (shouldTrackNextIndentation == true) {
+                        if (shouldTrackNextIndentation) {
                             if (indentationStack.Peek().Key < thisIndentation) {
                                 indentationStack.Push(new KeyValuePair<int, bool>(thisIndentation, false));
                             }
@@ -649,7 +649,7 @@ namespace Yarn {
             var initialIndentRegex = new Regex(@"^(\s*)");
             var match = initialIndentRegex.Match(line);
 
-            if (match == null || match.Groups[0] == null) {
+            if ((match == null) || (match.Groups[0] == null)) {
                 return 0;
             }
 

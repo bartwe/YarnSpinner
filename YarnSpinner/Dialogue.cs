@@ -110,11 +110,10 @@ namespace Yarn {
         }
 
         public override Value GetValue(string variableName) {
-            var value = Value.NULL;
-            if (variables.ContainsKey(variableName)) {
-                value = variables[variableName];
-            }
-            return value;
+            Value value;
+            if (variables.TryGetValue(variableName, out value))
+                return value;
+            return Value.NULL;
         }
 
         public override void Clear() {
@@ -413,12 +412,6 @@ namespace Yarn {
 
         public IEnumerable<string> visitedNodes {
             get { return visitedNodeCount.Keys; }
-            set {
-                visitedNodeCount = new Dictionary<string, int>();
-                foreach (var entry in visitedNodes) {
-                    visitedNodeCount[entry] = 1;
-                }
-            }
         }
 
         public IEnumerable<string> allNodes { get { return program.nodes.Keys; } }
