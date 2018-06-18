@@ -309,24 +309,23 @@ namespace Yarn {
         }
 
         void LoadCompiledProgramV1(MemoryStream stream) {
-            using (var reader = new BsonReader(stream)) {
-                var serializer = new JsonSerializer();
+            var reader = new BsonReader(stream);
+            var serializer = new JsonSerializer();
 
-                try {
-                    // Load the stored program
-                    var newProgram = serializer.Deserialize<Program>(reader);
+            try {
+                // Load the stored program
+                var newProgram = serializer.Deserialize<Program>(reader);
 
-                    // Merge it with our existing one, if present
-                    if (program != null) {
-                        program.Include(newProgram);
-                    }
-                    else {
-                        program = newProgram;
-                    }
+                // Merge it with our existing one, if present
+                if (program != null) {
+                    program.Include(newProgram);
                 }
-                catch (JsonReaderException e) {
-                    LogErrorMessage(string.Format("Cannot load compiled program: {0}", e.Message));
+                else {
+                    program = newProgram;
                 }
+            }
+            catch (JsonReaderException e) {
+                LogErrorMessage(string.Format("Cannot load compiled program: {0}", e.Message));
             }
         }
 
