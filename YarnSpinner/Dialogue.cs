@@ -262,9 +262,23 @@ namespace Yarn {
         public void LoadFile(string fileName, bool showTokens = false, bool showParseTree = false, string onlyConsiderNode = null) {
             // Is this a compiled program file?
             if (fileName.EndsWith(".yarn.bytes")) {
-                var bytes = File.ReadAllBytes(fileName);
-                LoadCompiledProgram(bytes, fileName);
-
+                using (var stream = File.OpenRead(fileName)) {
+                    var bytes = new MemoryStream();
+                    var length = (int)stream.Length;
+                    bytes.SetLength(length);
+                    var buffer = bytes.GetBuffer();
+                    var offset = (int)bytes.Seek(0, SeekOrigin.Current);
+                    while (length > 0) {
+                        var r = stream.Read(buffer, offset, length);
+                        if (r == 0)
+                            throw new EndOfStreamException();
+                        if ((r < 0) || (r > length))
+                            throw new Exception("Read returned unexpected value " + r);
+                        length -= r;
+                        offset += r;
+                    }
+                    LoadCompiledProgram(bytes, fileName);
+                }
                 return;
             }
             // It's source code, either a single node in text form or a JSON file
@@ -276,7 +290,7 @@ namespace Yarn {
             LoadString(inputString, fileName, showTokens, showParseTree, onlyConsiderNode);
         }
 
-        public void LoadCompiledProgram(byte[] bytes, string fileName, CompiledFormat format = LATEST_FORMAT) {
+        public void LoadCompiledProgram(MemoryStream stream, string fileName, CompiledFormat format = LATEST_FORMAT) {
             if (LogDebugMessage == null) {
                 throw new YarnException("LogDebugMessage must be set before loading");
             }
@@ -287,33 +301,31 @@ namespace Yarn {
 
             switch (format) {
                 case CompiledFormat.V1:
-                    LoadCompiledProgramV1(bytes);
+                    LoadCompiledProgramV1(stream);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
         }
 
-        void LoadCompiledProgramV1(byte[] bytes) {
-            using (var stream = new MemoryStream(bytes)) {
-                using (var reader = new BsonReader(stream)) {
-                    var serializer = new JsonSerializer();
+        void LoadCompiledProgramV1(MemoryStream stream) {
+            using (var reader = new BsonReader(stream)) {
+                var serializer = new JsonSerializer();
 
-                    try {
-                        // Load the stored program
-                        var newProgram = serializer.Deserialize<Program>(reader);
+                try {
+                    // Load the stored program
+                    var newProgram = serializer.Deserialize<Program>(reader);
 
-                        // Merge it with our existing one, if present
-                        if (program != null) {
-                            program.Include(newProgram);
-                        }
-                        else {
-                            program = newProgram;
-                        }
+                    // Merge it with our existing one, if present
+                    if (program != null) {
+                        program.Include(newProgram);
                     }
-                    catch (JsonReaderException e) {
-                        LogErrorMessage(string.Format("Cannot load compiled program: {0}", e.Message));
+                    else {
+                        program = newProgram;
                     }
+                }
+                catch (JsonReaderException e) {
+                    LogErrorMessage(string.Format("Cannot load compiled program: {0}", e.Message));
                 }
             }
         }
@@ -410,9 +422,7 @@ namespace Yarn {
                 vm.Stop();
         }
 
-        public IEnumerable<string> visitedNodes {
-            get { return visitedNodeCount.Keys; }
-        }
+        public IEnumerable<string> visitedNodes { get { return visitedNodeCount.Keys; } }
 
         public IEnumerable<string> allNodes { get { return program.nodes.Keys; } }
 
