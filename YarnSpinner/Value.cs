@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Yarn {
     // A value from inside Yarn.
@@ -45,8 +46,11 @@ namespace Yarn {
                     case Type.Number:
                         return numberValue;
                     case Type.String:
+                        float value;
                         try {
-                            return float.Parse(stringValue);
+                            if (float.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
+                                return value;
+                            return 0.0f;
                         }
                         catch (FormatException) {
                             return 0.0f;
