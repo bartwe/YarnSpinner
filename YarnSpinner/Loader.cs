@@ -34,6 +34,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace Yarn {
     public enum NodeFormat {
@@ -202,6 +203,35 @@ namespace Yarn {
             }
         }
 
+        public struct NodeInfo2 {
+
+
+            public string title { get; set; }
+            public string[] body { get; set; }
+
+            // The raw "tags" field, containing space-separated tags. This is written
+            // to the file.
+            public string tags { get; set; }
+
+            public int colorID { get; set; }
+            public NodeInfo.Position position { get; set; }
+
+            // The tags for this node, as a list of individual strings.
+            [JsonIgnore]
+            public List<string> tagsList
+            {
+                get
+                {
+                    // If we have no tags list, or it's empty, return the empty list
+                    if (string.IsNullOrEmpty(tags)) {
+                        return new List<string>();
+                    }
+
+                    return new List<string>(tags.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries));
+                }
+            }
+        }
+
         internal static NodeFormat GetFormatFromFileName(string fileName) {
             NodeFormat format;
             if (fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) {
@@ -235,12 +265,24 @@ namespace Yarn {
                     nodes.Add(nodeInfo);
                     break;
                 case NodeFormat.JSON:
-                    // Parse it as JSON
                     try {
                         nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(text);
-                    }
-                    catch (JsonReaderException e) {
-                        dialogue.LogErrorMessage("Error parsing Yarn input: " + e.Message);
+                    } catch (JsonReaderException e) {
+                        try {
+                            var nodes2 = new List<NodeInfo2>();
+                            nodes2 = JsonConvert.DeserializeObject<List<NodeInfo2>>(text);
+                            foreach (var node in nodes2) {
+                                var item = new NodeInfo();
+                                item.body = string.Join("\n", node.body);
+                                item.colorID = node.colorID;
+                                item.position = node.position;
+                                item.tags = node.tags;
+                                item.title = node.title;
+                                nodes.Add(item);
+                            }
+                        } catch (JsonReaderException g) {
+                            dialogue.LogErrorMessage("Error parsing Yarn input: " + g.Message);
+                        }
                     }
 
                     break;
