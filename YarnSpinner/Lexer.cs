@@ -461,7 +461,7 @@ namespace Yarn {
             }
         }
 
-        public TokenList Tokenise(string title, string text) {
+        public TokenList Tokenise(string title, string[] text) {
             // Do some initial setup
             indentationStack = new Stack<KeyValuePair<int, bool>>();
             indentationStack.Push(new KeyValuePair<int, bool>(0, false));
@@ -472,7 +472,7 @@ namespace Yarn {
             currentState = defaultState;
 
             // Parse each line
-            var lines = new List<string>(text.Split('\n'));
+            var lines = text.ToList();
             // Add a blank line to ensure that we end with zero indentation
             lines.Add("");
 

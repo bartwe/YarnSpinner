@@ -34,6 +34,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
+using System.Linq;
 
 namespace Yarn {
     public enum NodeFormat {
@@ -123,7 +124,7 @@ namespace Yarn {
                     // If this node is tagged "rawText", then preserve its source
                     if (string.IsNullOrEmpty(nodeInfo.tags) == false &&
                         nodeInfo.tags.Contains("rawText")) {
-                        node.source = nodeInfo.body;
+                        node.source = string.Join("\\n", nodeInfo.body);
                     }
 
                     node.name = nodeInfo.title;
@@ -177,9 +178,8 @@ namespace Yarn {
                 public int y { get; set; }
             }
 
-
             public string title { get; set; }
-            public string body { get; set; }
+            public string[] body { get; set; }
 
             // The raw "tags" field, containing space-separated tags. This is written
             // to the file.
@@ -190,8 +190,10 @@ namespace Yarn {
 
             // The tags for this node, as a list of individual strings.
             [JsonIgnore]
-            public List<string> tagsList {
-                get {
+            public List<string> tagsList
+            {
+                get
+                {
                     // If we have no tags list, or it's empty, return the empty list
                     if (string.IsNullOrEmpty(tags)) {
                         return new List<string>();
@@ -231,15 +233,13 @@ namespace Yarn {
                     // If it starts with a comment, treat it as a single-node file
                     var nodeInfo = new NodeInfo();
                     nodeInfo.title = "Start";
-                    nodeInfo.body = text;
+                    nodeInfo.body = text.Split('\n');
                     nodes.Add(nodeInfo);
                     break;
                 case NodeFormat.JSON:
-                    // Parse it as JSON
                     try {
                         nodes = JsonConvert.DeserializeObject<List<NodeInfo>>(text);
-                    }
-                    catch (JsonReaderException e) {
+                    } catch (JsonReaderException e) {
                         dialogue.LogErrorMessage("Error parsing Yarn input: " + e.Message);
                     }
 
@@ -352,7 +352,7 @@ namespace Yarn {
                             }
                             // We're done reading the lines! Zip 'em up into a string and
                             // store it in the body
-                            node.body = string.Join("\n", lines.ToArray());
+                            node.body = lines.ToArray();
 
                             // And add this node to the list
                             nodes.Add(node);
@@ -369,4 +369,5 @@ namespace Yarn {
             return nodes.ToArray();
         }
     }
+
 }
