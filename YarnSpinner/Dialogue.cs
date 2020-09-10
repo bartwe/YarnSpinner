@@ -35,7 +35,7 @@ namespace Yarn {
     // Represents things that can go wrong while loading or running
     // a dialogue.
     public class YarnException : Exception {
-        public YarnException(string message) : base(message) {}
+        public YarnException(string message) : base(message) { }
     }
 
     // Delegates, which are used by the client.
@@ -127,7 +127,7 @@ namespace Yarn {
         internal VariableStorage continuity;
 
         // Represents something for the end user ("client") of the Dialogue class to do.
-        public abstract class RunnerResult {}
+        public abstract class RunnerResult { }
 
         // The client should run a line of dialogue.
         public class LineResult : RunnerResult {
@@ -421,9 +421,13 @@ namespace Yarn {
                 vm.Stop();
         }
 
-        public IEnumerable<string> visitedNodes { get { return visitedNodeCount.Keys; } }
+        public IEnumerable<string> visitedNodes {
+            get { return visitedNodeCount.Keys; }
+        }
 
-        public IEnumerable<string> allNodes { get { return program.nodes.Keys; } }
+        public IEnumerable<string> allNodes {
+            get { return program.nodes.Keys; }
+        }
 
         public string currentNode {
             get {
@@ -461,6 +465,23 @@ namespace Yarn {
             }
             LogErrorMessage("No node named " + nodeName);
             return null;
+        }
+
+        public IEnumerable<string> GetCommandsForNode(string nodeName) {
+            if (program.nodes.Count == 0) {
+                LogErrorMessage("No nodes are loaded!");
+                yield break;
+            }
+            Node node;
+            if (!program.nodes.TryGetValue(nodeName, out node)) {
+                LogErrorMessage("No node named " + nodeName);
+                yield break;
+            }
+
+            foreach (var instruction in node.instructions) {
+                if (instruction.operation == ByteCode.RunCommand)
+                    yield return (string)instruction.operandA;
+            }
         }
 
         public void AddStringTable(Dictionary<string, string> stringTable) {
