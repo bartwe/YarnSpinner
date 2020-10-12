@@ -335,8 +335,8 @@ namespace Yarn {
 
                     // If we have no options to show, immediately stop.
                     if (state.currentOptions.Count == 0) {
-                        executionState = ExecutionState.Stopped;
                         nodeCompleteHandler(new Dialogue.NodeCompleteResult(null));
+                        executionState = ExecutionState.Stopped;
                         break;
                     }
 
