@@ -67,3 +67,4 @@ Unity/Assets/UnityTestTools*
 
 # Unity package log
 export.log
+*.dtbcache.json
